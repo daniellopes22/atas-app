@@ -1,6 +1,6 @@
 # Pesquisa de Atas de Registro de Preços
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.4.6-000000?logo=next.js)](https://nextjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3.3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/) [![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel)](https://vercel.com/) [![Lei 14.133/2021](https://img.shields.io/badge/Compras_públicas-Lei_14.133%2F2021-1D4ED8)](https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm)
+[![Next.js](https://img.shields.io/badge/Next.js-16.4.6-000000?logo=next.js)](https://nextjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.3.3-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/) [![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel)](https://vercel.com/) [![Lei 14.133/2021](https://img.shields.io/badge/Compras_públicas-Lei_14.133%2F2021-1D4ED8)](https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/l14133.htm) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
 
 Aplicação web para pesquisar Atas de Registro de Preços na API de Dados Abertos do Compras.gov.br, calcular saldo de adesão, reconstruir links do PNCP e Comprasnet e enviar resultados para Google Sheets ou Excel Online.
 
@@ -170,7 +170,11 @@ Copy-Item .env.example .env.local
 
 ## Licença e contribuição
 
-Defina licença, política de contribuição e contato institucional antes da publicação no GitHub. Não há arquivo de licença no estado atual do projeto.
+Copyright © 2026 **Daniel Lopes Ferreira**.
+
+Este projeto é software livre licenciado sob a **GNU General Public License v3.0 (GPL-3.0)** — padrão adotado pelo **Software Público Brasileiro** (Portaria STI/MP nº 46/2016 e Lei nº 9.609/1998). Você pode usar, estudar, modificar e redistribuir este código, desde que eventuais obras derivadas permaneçam sob a mesma licença livre. Consulte o texto integral em [`LICENSE`](./LICENSE).
+
+Contribuições são bem-vindas via Pull Request seguindo o checklist de [`.github/PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md). Para vulnerabilidades de segurança, consulte [`SECURITY.md`](./SECURITY.md).
 
 ## Solução de problemas
 
