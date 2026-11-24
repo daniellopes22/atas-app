@@ -1,0 +1,51 @@
+name: CI - Qualidade Contínua
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  # Variáveis dummy para build de produção (sem segredos reais)
+  NEXTAUTH_SECRET: 'dummy-secret-for-build-only'
+  NEXTAUTH_URL: 'http://localhost:3000'
+  GOOGLE_CLIENT_ID: 'dummy-google-client-id'
+  GOOGLE_CLIENT_SECRET: 'dummy-google-client-secret'
+  AZURE_AD_CLIENT_ID: 'dummy-azure-client-id'
+  AZURE_AD_CLIENT_SECRET: 'dummy-azure-client-secret'
+  AZURE_AD_TENANT_ID: 'dummy-tenant-id'
+  COMPRAS_GOV_API_URL: 'https://api.compras.gov.br'
+  BRASIL_API_URL: 'https://brasilapi.com.br'
+
+jobs:
+  quality:
+    name: Lint, TypeCheck, Test & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production
+        run: npm run build
