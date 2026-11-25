@@ -14,7 +14,6 @@ const MS_OIDC = 'https://login.microsoftonline.com/common/v2.0/.well-known/openi
 const MS_GRAPH_METADATA = 'https://graph.microsoft.com/v1.0/$metadata';
 
 const TIMEOUT_MS = 8000;
-const results = [];
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function nowIso() {
@@ -124,7 +123,7 @@ async function main() {
   // 5. Links PNCP e Comprasnet
   // ========================================================
   printSection('3. Validação de links reconstruídos (PNCP / Comprasnet)');
-  let pncpLinkOk = false, pncpLink = '', editalLink = '', propostaLink = '';
+  let pncpLink = '', editalLink = '', propostaLink = '';
   if (sampleItem) {
     const ncp = sampleItem.numeroControlePncpAta;
     const match = ncp.match(/^(\d{14})-(\d)-(\d{6})\/(\d{4})-(\d+)$/);
@@ -143,7 +142,6 @@ async function main() {
   if (pncpLink) {
     const r4 = await fetchWithTimer(pncpLink, { method: 'HEAD' });
     const pncpReachable = r4.status !== null && r4.status < 500;
-    pncpLinkOk = pncpReachable;
     printRow('PNCP Ata', pncpLink, r4.status, r4.ms, r4.status === 200 ? 'Link válido (200)' : r4.status ? `Status ${r4.status}` : 'Sem resposta (bloqueado/CORS)', pncpReachable ? 'APROVADO' : 'ATENÇÃO');
   } else {
     printRow('PNCP Ata', 'Não gerado (sem item amostra)', null, null, 'Sem item da API', 'ATENÇÃO');
@@ -208,7 +206,7 @@ async function main() {
     });
     const internoOk = r11.status === 200 || r11.status === 401;
     printRow('Next.js API', '/api/atas/buscar', r11.status, r11.ms, internoOk ? 'Responde (200 ou 401 auth)' : r11.error || 'erro', internoOk ? 'APROVADO' : 'ATENÇÃO');
-  } catch (e) {
+  } catch {
     printRow('Next.js API', '/api/atas/buscar', null, null, 'Servidor local não está rodando', 'ATENÇÃO');
   }
 

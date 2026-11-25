@@ -11,7 +11,6 @@
  */
 
 import * as ExcelJS from 'exceljs';
-import type { SheetType } from '@/types';
 
 const NAVY = '1E3A8A';
 const LIGHT_BLUE = 'E8EEF7';
@@ -39,22 +38,13 @@ const DATA_HEADERS = [
   'Data Inclusão',
 ];
 
-const DASHBOARD_HEADERS = [
-  'Categoria',
-  'Total Itens Mapeados',
-  'Itens Vigentes',
-  'Vencendo em até 60 dias',
-  'Valor Global Disponível (R$)',
-];
-
 /**
  * Aplica estilização institucional azul-marinho na linha de cabeçalho.
  *
  * @param {ExcelJS.Worksheet} worksheet - Aba alvo do ExcelJS
  * @param {number} rowNumber - Índice 1-based da linha de cabeçalho
- * @param {number} colCount - Quantidade de colunas esperadas
  */
-function styleHeaderRow(worksheet: ExcelJS.Worksheet, rowNumber: number, colCount: number) {
+function styleHeaderRow(worksheet: ExcelJS.Worksheet, rowNumber: number) {
   const row = worksheet.getRow(rowNumber);
   row.eachCell((cell) => {
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${NAVY}` } };
@@ -75,10 +65,9 @@ function styleHeaderRow(worksheet: ExcelJS.Worksheet, rowNumber: number, colCoun
  *
  * @param {ExcelJS.Worksheet} worksheet - Aba alvo do ExcelJS
  * @param {number} rowNumber - Índice 1-based da linha
- * @param {number} colCount - Quantidade de colunas
  * @param {boolean} [isAlternate=false] - Aplica preenchimento cinza claro alternado quando `true`
  */
-function styleDataRow(worksheet: ExcelJS.Worksheet, rowNumber: number, colCount: number, isAlternate = false) {
+function styleDataRow(worksheet: ExcelJS.Worksheet, rowNumber: number, isAlternate = false) {
   const row = worksheet.getRow(rowNumber);
   row.eachCell((cell) => {
     cell.border = {
@@ -132,16 +121,17 @@ export function buildStandardWorkbook(): ExcelJS.Workbook {
   const categorias = ['Mat. Consumo', 'Mat. Permanente', 'Contratos'];
   let rowIdx = 2;
   for (const cat of categorias) {
+    const sheetRef = `'Atas - ${cat}'`;
     const r = dashboard.getRow(rowIdx);
     r.getCell('categoria').value = cat;
-    r.getCell('total').value = { formula: `COUNTA('${cat}'!A:A)-1` };
-    r.getCell('vigentes').value = { formula: `COUNTIF('${cat}'!B:B,"Vigente")` };
+    r.getCell('total').value = { formula: `COUNTA(${sheetRef}!A:A)-1` };
+    r.getCell('vigentes').value = { formula: `COUNTIF(${sheetRef}!B:B,"Vigente")` };
     r.getCell('vencendo').value = {
-      formula: `COUNTIFS('${cat}'!N:N,">="&TODAY(),'${cat}'!N:N,"<="&TODAY()+60)`,
+      formula: `COUNTIFS(${sheetRef}!M:M,">="&TODAY(),${sheetRef}!M:M,"<="&TODAY()+60)`,
     };
-    r.getCell('valor').value = { formula: `SUM('${cat}'!L:L)` };
+    r.getCell('valor').value = { formula: `SUM(${sheetRef}!L:L)` };
     r.getCell('valor').numFmt = '"R$" #,##0.00';
-    styleDataRow(dashboard, rowIdx, 5, rowIdx % 2 === 0);
+    styleDataRow(dashboard, rowIdx, rowIdx % 2 === 0);
     rowIdx++;
   }
 
@@ -164,23 +154,22 @@ export function buildStandardWorkbook(): ExcelJS.Workbook {
     };
   });
 
-  dashboard.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
-  dashboard.autoFilter = { from: 'A1', to: `E${rowIdx}` } as any;
+  dashboard.views = [];
 
   // ========================================================
   // Abas 2, 3, 4 — Dados
   // ========================================================
-  const sheetConfigs: Array<{ name: string; type: SheetType }> = [
-    { name: 'Atas - Mat. Consumo', type: 'consumo' },
-    { name: 'Atas - Mat. Permanente', type: 'permanente' },
-    { name: 'Atas - Contratos', type: 'contratos' },
+  const sheetConfigs: Array<{ name: string }> = [
+    { name: 'Atas - Mat. Consumo' },
+    { name: 'Atas - Mat. Permanente' },
+    { name: 'Atas - Contratos' },
   ];
 
-  for (const { name, type } of sheetConfigs) {
+  for (const { name } of sheetConfigs) {
     const ws = wb.addWorksheet(name);
     ws.columns = DATA_HEADERS.map((h, i) => ({ header: h, key: `col${i}`, width: h === 'Descrição do Item' ? 46 : 22 }));
 
-    styleHeaderRow(ws, 1, DATA_HEADERS.length);
+    styleHeaderRow(ws, 1);
     ws.getRow(1).values = DATA_HEADERS;
 
     // Linha 2 de exemplo (ajuda o usuário a entender o preenchimento)
@@ -202,14 +191,10 @@ export function buildStandardWorkbook(): ExcelJS.Workbook {
     exampleRow.getCell('col14').value = 'https://pncp.gov.br/app/atas/11439520000111/2025/46/1';
     exampleRow.getCell('col15').value = 'https://cnetmobile.estaleiro.serpro.gov.br/...';
     exampleRow.getCell('col16').value = new Date().toISOString().split('T')[0];
-    styleDataRow(ws, 2, DATA_HEADERS.length, true);
+    styleDataRow(ws, 2, true);
 
-    ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 2 }];
-    ws.autoFilter = { from: 'A1', to: `R1` } as any;
-    ws.views = [{ ...ws.views[0], showGridLines: true }];
-
-    // Nome da aba para referência no dashboard (não usado diretamente, mas documenta)
-    (ws as any)._sheetType = type;
+    ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 2, showGridLines: true }];
+    ws.autoFilter = 'A1:Q1';
   }
 
   return wb;

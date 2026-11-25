@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao escrever na planilha:', error);
     return NextResponse.json(
       { error: 'Não foi possível gravar na planilha agora.' },
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ sheets });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao listar abas:', error);
     return NextResponse.json(
       { error: 'Não foi possível listar as abas agora.' },

@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { FileSpreadsheet, ExternalLink, ChevronRight, ArrowRight, Settings, CheckCircle, AlertCircle } from 'lucide-react';
+import { ExternalLink, Settings, CheckCircle } from 'lucide-react';
 
 /** Propriedades de {@link SpreadsheetConnectionBar} */
 interface SpreadsheetConnectionBarProps {

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     const items = await fetchARPItems(filters);
     
     return NextResponse.json({ items, total: items.length });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro na API de busca ARP:', error);
     return NextResponse.json(
       { error: 'Não foi possível consultar o Portal de Compras agora. Tente novamente.' },

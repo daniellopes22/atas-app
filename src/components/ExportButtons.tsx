@@ -6,10 +6,10 @@
 'use client';
 
 import { useState } from 'react';
-import { ARPItem, SheetType } from '@/types';
+import { ARPItem, ConnectedSpreadsheet, SheetType } from '@/types';
 import { mapToConsumoRow, mapToPermanenteRow, mapToContratoRow } from '@/lib/sheetMapping';
 import { downloadExcel } from '@/lib/excelExport';
-import { Download, Clipboard, Check, Loader2, AlertCircle, FileSpreadsheet, ExternalLink, X } from 'lucide-react';
+import { Download, Clipboard, Check, Loader2, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
 
 /** Propriedades de {@link ExportButtons} */
 interface ExportButtonsProps {
@@ -20,7 +20,7 @@ interface ExportButtonsProps {
   /** Dispara gravação dos itens selecionados na planilha conectada */
   onWriteToSpreadsheet: () => void;
   /** Metadados da planilha conectada (ou `null`) */
-  connectedSpreadsheet: any;
+  connectedSpreadsheet: ConnectedSpreadsheet | null;
   /** Indica se há planilha conectada na sessão */
   isConnected: boolean;
   /** Atualiza a aba de destino selecionada */
@@ -29,6 +29,8 @@ interface ExportButtonsProps {
   onClearSelection?: () => void;
   /** Cria a planilha institucional padrão no Drive/OneDrive ou via download */
   onCreateStandardSheet?: (provider: 'google' | 'microsoft' | 'download', title: string) => void;
+  /** Provedor ativo para criação de nova planilha padrão */
+  defaultProvider?: 'google' | 'microsoft';
 }
 
 /**
@@ -46,6 +48,7 @@ export default function ExportButtons({
   onSheetTypeChange,
   onClearSelection,
   onCreateStandardSheet,
+  defaultProvider = 'google',
 }: ExportButtonsProps) {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [writeStatus, setWriteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -77,7 +80,7 @@ export default function ExportButtons({
       await navigator.clipboard.writeText(tabText);
       setCopyStatus('success');
       setTimeout(() => setCopyStatus('idle'), 3000);
-    } catch (error) {
+    } catch {
       setCopyStatus('error');
       setTimeout(() => setCopyStatus('idle'), 3000);
     }
@@ -89,7 +92,7 @@ export default function ExportButtons({
       await onWriteToSpreadsheet();
       setWriteStatus('success');
       setTimeout(() => setWriteStatus('idle'), 3000);
-    } catch (error) {
+    } catch {
       setWriteStatus('error');
       setTimeout(() => setWriteStatus('idle'), 3000);
     }
@@ -103,7 +106,7 @@ export default function ExportButtons({
       downloadExcel(blob, `atas-${sheetType}-${new Date().toISOString().split('T')[0]}.xlsx`);
       setDownloadStatus('success');
       setTimeout(() => setDownloadStatus('idle'), 3000);
-    } catch (error) {
+    } catch {
       setDownloadStatus('error');
       setTimeout(() => setDownloadStatus('idle'), 3000);
     }
@@ -146,7 +149,7 @@ export default function ExportButtons({
           <button
             onClick={() => {
               const title = window.prompt('Nome da nova planilha:', 'Controle de Atas - 2026');
-              if (title) onCreateStandardSheet('download', title);
+              if (title?.trim()) onCreateStandardSheet(defaultProvider, title.trim());
             }}
             className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
           >

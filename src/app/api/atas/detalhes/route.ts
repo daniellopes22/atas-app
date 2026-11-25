@@ -9,8 +9,7 @@
  * - **Response 200**: `{ item: ARPItem }` | `404` se inexistente.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchARPItemDetails, enrichWithPncpLinks, enrichWithSaldoAdesao, fetchFornecedorContato, calcularSaldoAdesao } from '@/lib/api';
-import { ARPItem } from '@/types';
+import { fetchARPItemDetails, enrichWithPncpLinks, enrichWithSaldoAdesao, fetchFornecedorContato } from '@/lib/api';
 import { detailSchema } from '@/lib/validation';
 import { getServerAccessToken } from '@/lib/serverAuth';
 
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
     item = enrichWithSaldoAdesao(item, autorizados);
 
     return NextResponse.json({ item });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro na API de detalhes ARP:', error);
     return NextResponse.json(
       { error: 'Não foi possível carregar detalhes do item agora.' },

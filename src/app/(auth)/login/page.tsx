@@ -65,7 +65,7 @@ export default function LoginPage() {
               <li>• Faça login com sua conta institucional (Google ou Microsoft)</li>
               <li>• Selecione sua planilha no Google Drive ou OneDrive/SharePoint</li>
               <li>• Pesquise atas por PDM, CATMAT, palavra-chave, esfera, etc.</li>
-              <li>• Marque os itens desejados e clique em "Incluir na Planilha"</li>
+              <li>• Marque os itens desejados e clique em &quot;Incluir na Planilha&quot;</li>
               <li>• Os dados são inseridos preservando todas as fórmulas originais</li>
             </ul>
           </div>

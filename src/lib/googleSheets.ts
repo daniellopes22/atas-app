@@ -9,8 +9,6 @@ import { google, sheets_v4 } from 'googleapis';
 import { ARPItem, SheetType, ConnectedSpreadsheet } from '@/types';
 import { getSheetMapper, rowsToSheetValues } from './sheetMapping';
 
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.file'];
-
 /**
  * Instancia o cliente autenticado do Google Sheets API v4.
  *
@@ -150,11 +148,11 @@ export async function appendRowsToSheet(
       success: true,
       updatedRows: response.data.updates?.updatedRows || 0,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao escrever no Google Sheets:', error);
     return {
       success: false,
-      error: error.message || 'Erro desconhecido ao escrever no Google Sheets',
+      error: error instanceof Error ? error.message : 'Erro desconhecido ao escrever no Google Sheets',
     };
   }
 }

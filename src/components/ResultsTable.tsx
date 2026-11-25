@@ -6,10 +6,10 @@
 'use client';
 
 import React from 'react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ARPItem, SheetType, SelectedItems } from '@/types';
 import { convertToPncpAtaLink } from '@/lib/links';
-import { Check, ChevronDown, ChevronUp, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 
 /** Propriedades de {@link ResultsTable} */
 interface ResultsTableProps {
@@ -33,6 +33,12 @@ export default function ResultsTable({ items, onSelectionChange, sheetType, onOp
   const [selected, setSelected] = useState<SelectedItems>({});
   const [sortConfig, setSortConfig] = useState<{ key: keyof ARPItem; direction: 'asc' | 'desc' } | null>(null);
   const [quickFilter, setQuickFilter] = useState('');
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected: SelectedItems = {};
@@ -62,14 +68,16 @@ export default function ResultsTable({ items, onSelectionChange, sheetType, onOp
     const filtered = items.filter(item => `${item.marcaModelo} ${item.orgaoNome} ${item.uasg}`.toLowerCase().includes(quickFilter.toLowerCase()));
     if (!sortConfig) return filtered;
     return [...filtered].sort((a, b) => {
-      const aVal = a[sortConfig.key] as any;
-      const bVal = b[sortConfig.key] as any;
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return sortConfig.direction === 'asc' ? 1 : -1;
       if (bVal == null) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      const cmp = String(aVal).localeCompare(String(bVal), 'pt-BR');
+      return sortConfig.direction === 'asc' ? cmp : -cmp;
     });
   }, [items, sortConfig, quickFilter]);
 
@@ -81,17 +89,21 @@ export default function ResultsTable({ items, onSelectionChange, sheetType, onOp
   interface TableColumn {
     key: keyof ARPItem;
     label: string;
-    format?: (value: any) => string;
+    format?: (value: ARPItem[keyof ARPItem]) => string;
   }
+
+  const formatCurrency = (v: ARPItem[keyof ARPItem]) =>
+    Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatDateOnly = (v: ARPItem[keyof ARPItem]) => String(v ?? '').split('T')[0];
 
   const columns: TableColumn[] = sheetType === 'consumo' ? [
         { key: 'descricaoItem', label: 'Material' },
         { key: 'codigoCatmat', label: 'CATMAT' },
         { key: 'marcaModelo', label: 'Marca/Modelo' },
-        { key: 'valorUnitarioEstimado', label: 'Vl. Unit. Est.', format: (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
-        { key: 'valorUnitarioAta', label: 'Vl. Unit. Ata', format: (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
+        { key: 'valorUnitarioEstimado', label: 'Vl. Unit. Est.', format: formatCurrency },
+        { key: 'valorUnitarioAta', label: 'Vl. Unit. Ata', format: formatCurrency },
         { key: 'quantidadeAta', label: 'Qtd. Ata' },
-        { key: 'dataVigenciaFinal', label: 'Validade', format: (v: string) => v.split('T')[0] },
+        { key: 'dataVigenciaFinal', label: 'Validade', format: formatDateOnly },
         { key: 'uasg', label: 'UASG' },
         { key: 'numeroCompra', label: 'Pregão' },
         { key: 'numeroAta', label: 'Nº Ata' },
@@ -101,22 +113,22 @@ export default function ResultsTable({ items, onSelectionChange, sheetType, onOp
         { key: 'descricaoItem', label: 'Material' },
         { key: 'marcaModelo', label: 'Marca/Modelo' },
         { key: 'quantidadeAta', label: 'Qtd. Ata' },
-        { key: 'valorUnitarioAta', label: 'Vl. Unit.', format: (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
-        { key: 'dataVigenciaFinal', label: 'Validade', format: (v: string) => v.split('T')[0] },
+        { key: 'valorUnitarioAta', label: 'Vl. Unit.', format: formatCurrency },
+        { key: 'dataVigenciaFinal', label: 'Validade', format: formatDateOnly },
         { key: 'uasg', label: 'UASG (Órgão)' },
-                { key: 'numeroCompra', label: 'Pregão' },
-                { key: 'numeroAta', label: 'Nº Ata' },
-                { key: 'numeroItemAta', label: 'Item' },
+        { key: 'numeroCompra', label: 'Pregão' },
+        { key: 'numeroAta', label: 'Nº Ata' },
+        { key: 'numeroItemAta', label: 'Item' },
   ] : [
-              { key: 'descricaoItem', label: 'Material' },
-              { key: 'marcaModelo', label: 'Marca/Modelo' },
-              { key: 'quantidadeAta', label: 'Qtd. Ata' },
-              { key: 'valorUnitarioAta', label: 'Vl. Unit.', format: (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
-              { key: 'dataVigenciaFinal', label: 'Validade', format: (v: string) => v.split('T')[0] },
-              { key: 'uasg', label: 'UASG' },
-              { key: 'numeroCompra', label: 'Pregão' },
-              { key: 'numeroAta', label: 'Nº Ata' },
-              { key: 'numeroItemAta', label: 'Item' },
+        { key: 'descricaoItem', label: 'Material' },
+        { key: 'marcaModelo', label: 'Marca/Modelo' },
+        { key: 'quantidadeAta', label: 'Qtd. Ata' },
+        { key: 'valorUnitarioAta', label: 'Vl. Unit.', format: formatCurrency },
+        { key: 'dataVigenciaFinal', label: 'Validade', format: formatDateOnly },
+        { key: 'uasg', label: 'UASG' },
+        { key: 'numeroCompra', label: 'Pregão' },
+        { key: 'numeroAta', label: 'Nº Ata' },
+        { key: 'numeroItemAta', label: 'Item' },
   ];
 
   const getStatusBadge = (item: ARPItem) => {
@@ -200,7 +212,7 @@ export default function ResultsTable({ items, onSelectionChange, sheetType, onOp
             {sortedItems.map((item, index) => {
               const isSelected = selected[item.numeroControlePncpAta];
               const linkAta = convertToPncpAtaLink(item.numeroControlePncpAta);
-              const daysLeft = Math.ceil((new Date(item.dataVigenciaFinal).getTime() - Date.now()) / 86_400_000);
+              const daysLeft = Math.ceil((new Date(item.dataVigenciaFinal).getTime() - nowMs) / 86_400_000);
 
               return (
                 <React.Fragment key={item.numeroControlePncpAta}>
@@ -247,16 +259,12 @@ export default function ResultsTable({ items, onSelectionChange, sheetType, onOp
                             )}
                             <button onClick={(event) => { event.stopPropagation(); onOpenDetails(item); }} className="mt-1 text-xs font-medium text-blue-700 hover:underline">Ver especificações completas</button>
                           </div>
-                        ) : col.key === 'marcaModelo' ? (
-                          <span className="truncate max-w-xs block" title={item.marcaModelo || ''}>
-                            {item.marcaModelo || '-'}
-                          </span>
                         ) : col.key === 'dataVigenciaFinal' ? (
                           <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${daysLeft > 90 ? 'bg-green-100 text-green-800' : daysLeft >= 30 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{daysLeft < 0 ? 'Vencida' : `${daysLeft} dias`}</span>
                         ) : col.format ? (
-                                                  col.format((item as any)[col.key])
+                          col.format(item[col.key])
                         ) : (
-                                                  String((item as any)[col.key] ?? '-')
+                          String(item[col.key] ?? '-')
                         )}
                       </td>
                     ))}

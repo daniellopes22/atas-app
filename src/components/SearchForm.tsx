@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SearchFilters } from '@/types';
 import { getDefaultDateRange } from '@/lib/api';
 import { Calendar, Search, Filter, X } from 'lucide-react';
@@ -25,23 +25,17 @@ interface SearchFormProps {
  * @returns {JSX.Element}
  */
 export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
-  const [filters, setFilters] = useState<SearchFilters>({
-    esfera: 'F',
-    apenasVigentesHoje: true,
-    dataVigenciaInicialMin: '',
-    dataVigenciaInicialMax: '',
+  const [filters, setFilters] = useState<SearchFilters>(() => {
+    const { min, max } = getDefaultDateRange();
+    return {
+      esfera: 'F',
+      apenasVigentesHoje: true,
+      dataVigenciaInicialMin: min,
+      dataVigenciaInicialMax: max,
+    };
   });
   
   const [showAdvanced, setShowAdvanced] = useState(false);
-
-  useEffect(() => {
-    const { min, max } = getDefaultDateRange();
-    setFilters(prev => ({
-      ...prev,
-      dataVigenciaInicialMin: prev.dataVigenciaInicialMin || min,
-      dataVigenciaInicialMax: prev.dataVigenciaInicialMax || max,
-    }));
-  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +63,7 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
     });
   };
 
-  const useExample = (palavraChave: string) => {
+  const applyKeywordExample = (palavraChave: string) => {
     setFilters(prev => ({ ...prev, palavraChave }));
   };
 
@@ -126,9 +120,9 @@ export function SearchForm({ onSearch, isLoading }: SearchFormProps) {
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
             <span className="self-center text-gray-500">Testar com:</span>
             <button type="button" onClick={() => setFilters(prev => ({ ...prev, codigoPdm: '6661' }))} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 hover:bg-blue-100">PDM 6661</button>
-            <button type="button" onClick={() => useExample('MICROCOMPUTADOR')} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 hover:bg-blue-100">Microcomputador</button>
-            <button type="button" onClick={() => useExample('NOTEBOOK')} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 hover:bg-blue-100">Notebook</button>
-            <button type="button" onClick={() => useExample('MONITOR')} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 hover:bg-blue-100">Monitor</button>
+            <button type="button" onClick={() => applyKeywordExample('MICROCOMPUTADOR')} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 hover:bg-blue-100">Microcomputador</button>
+            <button type="button" onClick={() => applyKeywordExample('NOTEBOOK')} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 hover:bg-blue-100">Notebook</button>
+            <button type="button" onClick={() => applyKeywordExample('MONITOR')} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700 hover:bg-blue-100">Monitor</button>
           </div>
         </div>
       </div>

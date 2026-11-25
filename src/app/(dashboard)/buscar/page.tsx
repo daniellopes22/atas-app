@@ -10,8 +10,8 @@ import SpreadsheetPicker from '@/components/SpreadsheetPicker';
 import SpreadsheetConnectionBar from '@/components/SpreadsheetConnectionBar';
 import ItemDetailsDrawer from '@/components/ItemDetailsDrawer';
 import AtaGroupedResults from '@/components/AtaGroupedResults';
-import { ARPItem, SheetType, SearchFilters } from '@/types';
-import { LogOut, Menu, X, FileSpreadsheet, ArrowRight, CheckCircle } from 'lucide-react';
+import { ARPItem, ConnectedSpreadsheet, SheetType, SearchFilters } from '@/types';
+import { LogOut, Menu, X, FileSpreadsheet } from 'lucide-react';
 
 // Force dynamic rendering for this page
 export const dynamic = 'force-dynamic';
@@ -26,11 +26,20 @@ export default function BuscarPage() {
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
   const [sheetType, setSheetType] = useState<SheetType>('consumo');
   const [showPicker, setShowPicker] = useState(false);
-  const [connectedSpreadsheet, setConnectedSpreadsheet] = useState<any>(null);
+  const [connectedSpreadsheet, setConnectedSpreadsheet] = useState<ConnectedSpreadsheet | null>(() => {
+    const sheetId = searchParams.get('sheetId');
+    const sheetName = searchParams.get('sheetName');
+    const provider = searchParams.get('provider');
+    const driveId = searchParams.get('driveId');
+
+    if (sheetId && sheetName && (provider === 'google' || provider === 'microsoft')) {
+      return { id: sheetId, name: sheetName, provider, driveId: driveId || undefined, sheets: [] };
+    }
+    return null;
+  });
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [detailItem, setDetailItem] = useState<ARPItem | null>(null);
   const [viewMode, setViewMode] = useState<'agrupado' | 'lista'>('agrupado');
-  const [showCreateSheet, setShowCreateSheet] = useState(false);
 
   // Verificar autenticação
   useEffect(() => {
@@ -39,17 +48,8 @@ export default function BuscarPage() {
     }
   }, [status, router]);
 
-  // Verificar se já tem planilha conectada na URL
-  useEffect(() => {
-    const sheetId = searchParams.get('sheetId');
-    const sheetName = searchParams.get('sheetName');
-    const provider = searchParams.get('provider');
-    const driveId = searchParams.get('driveId');
-    
-    if (sheetId && sheetName && provider) {
-      setConnectedSpreadsheet({ id: sheetId, name: sheetName, provider, driveId });
-    }
-  }, [searchParams]);
+  const activeProvider: 'google' | 'microsoft' =
+    session?.provider === 'azure-ad' ? 'microsoft' : 'google';
 
   const handleSearch = useCallback(async (filters: SearchFilters) => {
     setIsLoading(true);
@@ -68,8 +68,8 @@ export default function BuscarPage() {
 
       const data = await response.json();
       setItems(data.items || []);
-    } catch (err: any) {
-      setError(err.message || 'Erro inesperado na busca');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro inesperado na busca');
       setItems([]);
     } finally {
       setIsLoading(false);
@@ -123,13 +123,13 @@ export default function BuscarPage() {
       } else {
         alert(`Erro: ${result.error}`);
       }
-    } catch (err: any) {
-      alert(`Erro: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Erro: ${err instanceof Error ? err.message : 'Erro inesperado'}`);
     }
   };
 
-  const handleSpreadsheetSelected = (spreadsheet: any) => {
-    setConnectedSpreadsheet(spreadsheet);
+  const handleSpreadsheetSelected = (spreadsheet: { id: string; name: string; provider: 'google' | 'microsoft'; driveId?: string }) => {
+    setConnectedSpreadsheet({ ...spreadsheet, sheets: [] });
     setShowPicker(false);
     // Atualizar URL
     const params = new URLSearchParams();
@@ -147,7 +147,6 @@ export default function BuscarPage() {
 
   const handleCreateStandardSheet = async (provider: 'google' | 'microsoft' | 'download', title: string) => {
     if (provider === 'download') {
-      setShowCreateSheet(false);
       alert('Use "Baixar Excel dos Selecionados" para exportar localmente.');
       return;
     }
@@ -161,9 +160,14 @@ export default function BuscarPage() {
 
       const result = await response.json();
       if (result.success) {
-        setConnectedSpreadsheet({ id: result.spreadsheetId, name: result.spreadsheetName, provider: result.provider, driveId: connectedSpreadsheet?.driveId });
+        setConnectedSpreadsheet({
+          id: result.spreadsheetId,
+          name: result.spreadsheetName,
+          provider: result.provider,
+          driveId: connectedSpreadsheet?.driveId,
+          sheets: result.sheets || [],
+        });
         setShowPicker(false);
-        setShowCreateSheet(false);
         const params = new URLSearchParams();
         params.set('sheetId', result.spreadsheetId);
         params.set('sheetName', result.spreadsheetName);
@@ -174,9 +178,15 @@ export default function BuscarPage() {
       } else {
         alert(`Erro: ${result.error}`);
       }
-    } catch (err: any) {
-      setShowCreateSheet(false);
-      alert(`Erro: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Erro: ${err instanceof Error ? err.message : 'Erro inesperado'}`);
+    }
+  };
+
+  const promptCreateStandardSheet = () => {
+    const title = window.prompt('Nome da nova planilha padrão:', 'Controle de Atas - 2026');
+    if (title?.trim()) {
+      void handleCreateStandardSheet(activeProvider, title.trim());
     }
   };
 
@@ -211,17 +221,17 @@ export default function BuscarPage() {
               </button>
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
               </div>
-              <h1 className="text-xl font-bold text-gray-900 hidden sm:block">Pesquisa de Atas RP</h1>
+              <h1 className="text-xl font-bold text-gray-900">Buscar Atas</h1>
             </div>
 
             <div className="flex items-center gap-4">
               {/* Botão Nova Planilha Padrão */}
               {connectedSpreadsheet ? null : (
                 <button
-                  onClick={() => setShowCreateSheet(true)}
+                  onClick={promptCreateStandardSheet}
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
@@ -293,7 +303,7 @@ export default function BuscarPage() {
           onConnect={() => setShowPicker(true)}
           onDisconnect={handleDisconnectSpreadsheet}
           onOpenSpreadsheet={openSpreadsheet}
-          provider={connectedSpreadsheet?.provider || ((session as any)?.provider === 'azure-ad' ? 'microsoft' : 'google')}
+          provider={connectedSpreadsheet?.provider || (session?.provider === 'azure-ad' ? 'microsoft' : 'google')}
         />
         {/* Alert de erro */}
         {error && (
@@ -358,6 +368,7 @@ export default function BuscarPage() {
               onSheetTypeChange={setSheetType}
               onClearSelection={handleClearSelection}
               onCreateStandardSheet={handleCreateStandardSheet}
+              defaultProvider={activeProvider}
             />
           </div>
         )}
@@ -386,7 +397,7 @@ export default function BuscarPage() {
         <SpreadsheetPicker
           onSelect={handleSpreadsheetSelected}
           onClose={() => setShowPicker(false)}
-                provider={(session as any)?.provider || 'google'}
+          provider={session?.provider === 'azure-ad' ? 'azure-ad' : 'google'}
         />
       )}
       <ItemDetailsDrawer item={detailItem} onClose={() => setDetailItem(null)} />

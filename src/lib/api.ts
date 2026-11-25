@@ -7,7 +7,7 @@
  * complementares (palavra-chave e vigência na data atual).
  */
 import axios from 'axios';
-import { ARPItem, SearchFilters, FornecedorContato, SaldoAdesao } from '@/types';
+import { ARPItem, SearchFilters } from '@/types';
 
 const API_BASE = 'https://dadosabertos.compras.gov.br/modulo-arp/2_consultarARPItem';
 const EXTERNAL_API_TIMEOUT_MS = 15_000;
@@ -49,7 +49,13 @@ interface RawARPItem {
   itemExcluido: boolean;
   codigoPdm: number;
   nomePdm: string;
-  
+  codigoUnidadeGerenciadora?: string;
+  numeroCompra?: string;
+  anoCompra?: string;
+  codigoModalidadeCompra?: string;
+  dataAssinatura?: string;
+  dataVigenciaInicial?: string;
+  dataVigenciaFinal?: string;
 }
 
 /**
@@ -86,7 +92,7 @@ export async function fetchARPItems(filters: SearchFilters): Promise<ARPItem[]> 
     });
     clearTimeout(timeout);
 
-    let items = response.data?.resultado || [];
+    const items = response.data?.resultado || [];
     
     // Mapear campos da API para nossa interface
     let mappedItems = items.map(mapRawToARPItem);
@@ -127,21 +133,10 @@ export async function fetchARPItems(filters: SearchFilters): Promise<ARPItem[]> 
  * `valorUnitarioEstimado` espelhando `valorUnitario`, `esfera` padrão `'F'`) para manter
  * compatibilidade com os mappers de planilha e componentes de UI.
  *
- * @param {any} raw - Objeto retornado em `resultado[]` pela API Compras.gov.br
+ * @param {RawARPItem} raw - Objeto retornado em `resultado[]` pela API Compras.gov.br
  * @returns {ARPItem} Item padronizado no modelo de domínio da aplicação
  */
-function mapRawToARPItem(raw: any): ARPItem {
-  const numeroItemInt = parseInt(raw.numeroItem, 10) || 0;
-  const codigoPdmInt = raw.codigoPdm || 0;
-  const quantidadeAta = raw.quantidadeHomologadaItem || 0;
-  const valorUnitario = raw.valorUnitario || 0;
-  const valorTotal = raw.valorTotal || 0;
-  
-  // Inferir esfera pela UASG (cÃ³digo da unidade gerenciadora)
-  // Federal costuma comeÃ§ar com 1-9, Estadual/Municipal varia
-  // Por simplicidade, usar 'F' como padrÃ£o
-  const esfera: 'F' | 'E' | 'M' = 'F';
-  
+function mapRawToARPItem(raw: RawARPItem): ARPItem {
   return {
     // Campos diretos da API (Ãºnicos)
     numeroControlePncpAta: raw.numeroControlePncpAta,
@@ -171,27 +166,26 @@ function mapRawToARPItem(raw: any): ARPItem {
     itemExcluido: raw.itemExcluido,
     codigoPdm: raw.codigoPdm,
     nomePdm: raw.nomePdm,
-    codigoUnidadeGerenciadora: raw.codigoUnidadeGerenciadora,
-    numeroCompra: raw.numeroCompra,
-    anoCompra: raw.anoCompra,
-    codigoModalidadeCompra: raw.codigoModalidadeCompra,
-    dataAssinatura: raw.dataAssinatura,
-    dataVigenciaInicial: raw.dataVigenciaInicial,
-    dataVigenciaFinal: raw.dataVigenciaFinal,
+    codigoUnidadeGerenciadora: raw.codigoUnidadeGerenciadora || '',
+    numeroCompra: raw.numeroCompra || '',
+    anoCompra: raw.anoCompra || '',
+    codigoModalidadeCompra: raw.codigoModalidadeCompra || '',
+    dataAssinatura: raw.dataAssinatura || '',
+    dataVigenciaInicial: raw.dataVigenciaInicial || '',
+    dataVigenciaFinal: raw.dataVigenciaFinal || '',
     
     // Campos calculados/mapeados para compatibilidade
     numeroAta: raw.numeroAtaRegistroPreco,
     numeroItemAta: parseInt(raw.numeroItem, 10) || 0,
     codigoPdmStr: String(raw.codigoPdm || 0),
-    codigoCatmat: String(raw.codigoPdm || 0), // API nÃ£o tem CATMAT, usar PDM
+    codigoCatmat: String(raw.codigoPdm || 0),
     marcaModelo: `${raw.tipoItem || ''} ${raw.nomePdm || ''}`.trim(),
-    valorUnitarioEstimado: raw.valorUnitario || 0, // API nÃ£o tem estimado
+    valorUnitarioEstimado: raw.valorUnitario || 0,
     valorUnitarioAta: raw.valorUnitario || 0,
     quantidadeAta: raw.quantidadeHomologadaItem || 0,
     uasg: raw.codigoUnidadeGerenciadora || '',
     orgaoNome: raw.nomeUnidadeGerenciadora || '',
-    esfera: 'F', // Default, API nÃ£o tem esfera
-    // Calculados
+    esfera: 'F',
     linkAtaPncp: '',
     linkEditalPncp: '',
     linkPropostaItem: '',
@@ -267,10 +261,11 @@ export function getDefaultDateRange(): { min: string; max: string } {
  * @param {string} numeroControlePncpAta - Identificador PNCP da Ata
  * @returns {Promise<number>} Quantidade autorizada acumulada (atualmente `0`)
  */
-export async function fetchAdesoesCaronas(numeroControlePncpAta: string): Promise<number> {
+export async function fetchAdesoesCaronas(): Promise<number> {
   // TODO: Implementar consulta ao endpoint /modulo-arp/5_consultarAdesoesItem
   return 0;
 }
 
 // Re-export from links.ts
 export { enrichWithPncpLinks, enrichWithSaldoAdesao, fetchFornecedorContato, calcularSaldoAdesao, formatContatoPlanilha } from './links';
+  

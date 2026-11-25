@@ -9,6 +9,7 @@
  *   Google Drive (convertendo para Google Spreadsheet) ou OneDrive/SharePoint via Microsoft Graph.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { Readable } from 'stream';
 import { getServerAccessToken } from '@/lib/serverAuth';
 import { createSpreadsheetSchema } from '@/lib/validation';
 import { generateStandardWorkbookBuffer, getStandardSheetNames } from '@/lib/spreadsheet-template';
@@ -40,8 +41,9 @@ export async function POST(req: NextRequest) {
 
     if (provider === 'google') {
       const { google } = await import('googleapis');
-      const drive = google.drive({ version: 'v3', auth: new google.auth.OAuth2() });
-      (drive as any).setCredentials({ access_token: accessToken });
+      const auth = new google.auth.OAuth2();
+      auth.setCredentials({ access_token: accessToken });
+      const drive = google.drive({ version: 'v3', auth });
 
       const fileMetadata = {
         name: title,
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
 
       const media = {
         mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        body: buffer,
+        body: Readable.from(buffer),
       };
 
       const response = await drive.files.create({
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
         fields: 'id, name, webViewLink',
       });
 
-      const file = response.data as any;
+      const file = response.data;
       return NextResponse.json({
         success: true,
         provider: 'google',
@@ -106,7 +108,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Provedor inválido.' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao criar planilha padrão:', error);
     return NextResponse.json(
       { error: 'Não foi possível criar a planilha padrão agora.' },

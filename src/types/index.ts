@@ -428,6 +428,8 @@ export interface ConnectedSpreadsheet {
   sheets: string[];
   /** Aba atualmente selecionada pelo usuário */
   selectedSheet?: string;
+  /** ID do drive (SharePoint/OneDrive) quando aplicável */
+  driveId?: string;
 }
 
 /**

@@ -7,12 +7,12 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { FolderOpen, CheckCircle, FileSpreadsheet, Loader2, X, ChevronRight } from 'lucide-react';
+import { FileSpreadsheet, Loader2, X, CheckCircle } from 'lucide-react';
 
 /** Propriedades de {@link SpreadsheetPicker} */
 interface SpreadsheetPickerProps {
   /** Callback chamado quando o usuário confirma a seleção de uma planilha */
-  onSelect: (spreadsheet: { id: string; name: string; provider: string; driveId?: string }) => void;
+  onSelect: (spreadsheet: { id: string; name: string; provider: 'google' | 'microsoft'; driveId?: string }) => void;
   /** Fecha o modal */
   onClose: () => void;
   /** Provedor OAuth da sessão (`'google' | 'azure-ad'`) */
@@ -28,50 +28,64 @@ interface SpreadsheetPickerProps {
  * @returns {JSX.Element}
  */
 export default function SpreadsheetPicker({ onSelect, onClose, provider, onCreateStandardSheet }: SpreadsheetPickerProps) {
-  const { data: session } = useSession();
-    const [spreadsheets, setSpreadsheets] = useState<Array<{ id: string; name: string; driveId?: string; provider?: string }>>([]);
+  const { data: session, status } = useSession();
+  const [spreadsheets, setSpreadsheets] = useState<Array<{ id: string; name: string; driveId?: string; provider?: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchSpreadsheets();
-  }, [session]);
+  const normalizedProvider: 'google' | 'microsoft' = provider === 'google' ? 'google' : 'microsoft';
 
-  const fetchSpreadsheets = async () => {
-      if (!(session as any)?.accessToken) return;
-    
-    try {
-      setIsLoading(true);
-      let url = '';
-      if (provider === 'google') {
-        url = `/api/planilha/listar?provider=google`;
-      } else {
-        url = `/api/planilha/listar?provider=microsoft`;
-      }
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error('Erro ao buscar planilhas');
-      }
-      
-      const data = await response.json();
-            const spreadsheetsWithProvider = (data.spreadsheets || []).map((s: any) => ({
-              ...s,
-              provider,
-            }));
-            setSpreadsheets(spreadsheetsWithProvider);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (!session) {
+      setTimeout(() => {
+        setError('Faça login para listar suas planilhas.');
+        setIsLoading(false);
+      }, 0);
+      return;
     }
-  };
+
+    let cancelled = false;
+    const loadSpreadsheets = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch(`/api/planilha/listar?provider=${normalizedProvider}`);
+
+        if (!response.ok) {
+          throw new Error('Erro ao buscar planilhas');
+        }
+
+        const data = (await response.json()) as {
+          spreadsheets?: Array<{ id: string; name: string; driveId?: string }>;
+        };
+        if (!cancelled) {
+          setSpreadsheets(
+            (data.spreadsheets || []).map((s) => ({
+              ...s,
+              provider: normalizedProvider,
+            }))
+          );
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Erro ao buscar planilhas');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void loadSpreadsheets();
+    return () => {
+      cancelled = true;
+    };
+  }, [session, status, normalizedProvider]);
 
   const handleSelect = (spreadsheet: { id: string; name: string; driveId?: string }) => {
     setSelectedId(spreadsheet.id);
-    onSelect({ ...spreadsheet, provider });
+    onSelect({ ...spreadsheet, provider: normalizedProvider });
   };
 
   if (isLoading) {
@@ -156,7 +170,7 @@ export default function SpreadsheetPicker({ onSelect, onClose, provider, onCreat
             <button
               onClick={() => {
                 const title = window.prompt('Nome da nova planilha:', 'Controle de Atas - 2026');
-                if (title) onCreateStandardSheet(provider === 'azure-ad' ? 'microsoft' : 'google', title);
+                if (title) onCreateStandardSheet(normalizedProvider, title);
               }}
               className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
             >
@@ -166,7 +180,7 @@ export default function SpreadsheetPicker({ onSelect, onClose, provider, onCreat
           <button
                       onClick={() => {
                         const sheet = spreadsheets.find(s => s.id === selectedId);
-                        if (sheet) onSelect({ ...sheet, provider: sheet.provider || provider });
+                        if (sheet) onSelect({ ...sheet, provider: normalizedProvider });
                       }}
             disabled={!selectedId}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

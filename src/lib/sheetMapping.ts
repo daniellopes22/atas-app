@@ -186,6 +186,7 @@ export function rowsToSheetValues<T extends object>(
   rows: T[], 
   _headers: string[]
 ): (string | number)[][] {
+  void _headers;
   return rows.map(row => Object.values(row).map(value => value ?? ''));
 }
 

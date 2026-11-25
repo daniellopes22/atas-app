@@ -27,8 +27,10 @@ export async function listUserSpreadsheets(accessToken: string): Promise<Connect
     
     if (!response.ok) return [];
     
-    const data = await response.json();
-    return data.value.map((item: any) => ({
+    const data = (await response.json()) as {
+      value: Array<{ id: string; name: string; parentReference?: { driveId?: string } }>;
+    };
+    return data.value.map((item) => ({
       id: item.id,
       name: item.name,
       provider: 'microsoft',
@@ -62,6 +64,14 @@ export async function getSpreadsheetSheets(accessToken: string, fileId: string, 
     
     if (!response.ok) return [];
     
+    const data = (await response.json()) as { value: Array<{ name: string }> };
+    return data.value.map((s) => s.name);
+  } catch (error) {
+    console.error('Erro ao listar abas:', error);
+    return [];
+  }
+}
+
 /**
  * Anexa linhas mapeadas ao final do `usedRange` de uma aba no Excel Online via Microsoft Graph.
  *
@@ -73,14 +83,6 @@ export async function getSpreadsheetSheets(accessToken: string, fileId: string, 
  * @param {string} [driveId] - ID do drive SharePoint, se aplicável
  * @returns {Promise<{ success: boolean; updatedRows?: number; error?: string }>} Resultado da gravação
  */
-    const data = await response.json();
-    return data.value.map((s: any) => s.name);
-  } catch (error) {
-    console.error('Erro ao listar abas:', error);
-    return [];
-  }
-}
-
 export async function appendRowsToExcel(
   accessToken: string,
   fileId: string,
@@ -144,23 +146,23 @@ export async function appendRowsToExcel(
 
     return {
       success: true,
+      updatedRows: items.length,
+    };
+  } catch (error: unknown) {
+    console.error('Erro ao escrever no Excel Online:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido ao escrever no Excel Online',
+    };
+  }
+}
+
 /**
  * Converte um índice de coluna 1-based em notação alfabética do Excel (ex: `1 -> A`, `27 -> AA`).
  *
  * @param {number} columnNumber - Número da coluna (1-based)
  * @returns {string} Letra(s) da coluna no formato A1
  */
-      updatedRows: items.length,
-    };
-  } catch (error: any) {
-    console.error('Erro ao escrever no Excel Online:', error);
-    return {
-      success: false,
-      error: error.message || 'Erro desconhecido ao escrever no Excel Online',
-    };
-  }
-}
-
 function toExcelColumnName(columnNumber: number): string {
   let column = '';
   while (columnNumber > 0) {

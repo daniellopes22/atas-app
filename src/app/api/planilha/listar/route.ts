@@ -13,6 +13,7 @@ import { getServerAccessToken } from '@/lib/serverAuth';
 import { providerSchema } from '@/lib/validation';
 import { listUserSpreadsheets as listGoogleSheets } from '@/lib/googleSheets';
 import { listUserSpreadsheets as listMicrosoftSheets } from '@/lib/microsoftGraph';
+import { ConnectedSpreadsheet } from '@/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -37,13 +38,13 @@ export async function GET(req: NextRequest) {
     const provider = providerSchema.safeParse(searchParams.get('provider'));
     if (!provider.success) return NextResponse.json({ error: 'Provedor inválido.' }, { status: 400 });
 
-    let spreadsheets: any[] = [];
+    let spreadsheets: ConnectedSpreadsheet[] = [];
     
     if (provider.data === 'google') spreadsheets = await listGoogleSheets(accessToken);
     else spreadsheets = await listMicrosoftSheets(accessToken);
 
     return NextResponse.json({ spreadsheets });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao listar planilhas:', error);
     return NextResponse.json(
       { error: 'Não foi possível listar as planilhas agora.' },
