@@ -279,6 +279,8 @@ export interface SheetRowConsumo {
   linkPropostaItem: string;
   /** Col W - Status: 'Disponível', 'Saldo Reduzido', 'Esgotado', 'Vencido' */
   status: string;
+  /** Col X - Resumo de regularidade do fornecedor (TCU/Compras.gov) */
+  regularidade: string;
 }
 
 /**
@@ -337,10 +339,12 @@ export interface SheetRowPermanente {
   gestaoContrato: string;
   /** Col W - Dias p/ encerramento (vazio) */
   diasEncerramento: string;
+  /** Col X - Resumo de regularidade do fornecedor (TCU/Compras.gov) */
+  regularidade: string;
 }
 
 /**
- * Estrutura de linha para a aba "Atas - Contratos" (24 colunas A-X).
+ * Estrutura de linha para a aba "Atas - Contratos" (25 colunas A-Y).
  * 
  * @interface SheetRowContrato
  * @description Estrutura para contratos com campos de gestão (SEI, dias encerramento).
@@ -397,6 +401,8 @@ export interface SheetRowContrato {
   gestaoContrato: string;
   /** Col X - Dias p/ encerramento (vazio) */
   diasEncerramento: string;
+  /** Col Y - Resumo de regularidade do fornecedor (TCU/Compras.gov) */
+  regularidade: string;
 }
 
 /**
@@ -450,4 +456,125 @@ export interface UserSession {
   expiresAt: number;
   /** Planilha conectada atualmente (se houver) */
   spreadsheet?: ConnectedSpreadsheet;
+}
+
+// ========================================================
+// Tipos para Triagem de Regularidade do Fornecedor
+// ========================================================
+
+/**
+ * Estados possíveis de uma verificação de certidão/regularidade.
+ * 
+ * @type VerificacaoEstado
+ * @description 'carregando' - consulta em andamento
+ *              'sem_restricoes' - verificação automática confirmou ausência de impedimentos
+ *              'impedimento' - verificação automática encontrou restrição
+ *              'conferido' - servidor marcou manualmente como verificado no portal
+ *              'erro' - falha na consulta automática (API indisponível)
+ */
+export type VerificacaoEstado = 'carregando' | 'sem_restricoes' | 'impedimento' | 'conferido' | 'erro';
+
+/**
+ * Resultado da verificação de regularidade em um portal específico.
+ * 
+ * @interface VerificacaoPortal
+ * @description Usado para exibir o estado de cada um dos 4 portais na UI.
+ */
+export interface VerificacaoPortal {
+  /** Identificador do portal (tcu, receita, fgts, cndt) */
+  id: 'tcu' | 'receita' | 'fgts' | 'cndt';
+  /** Nome amigável para exibição */
+  nome: string;
+  /** Estado atual da verificação */
+  estado: VerificacaoEstado;
+  /** Detalhe do impedimento encontrado (se estado === 'impedimento') */
+  detalheImpedimento?: string;
+  /** Se o servidor marcou manualmente como conferido */
+  conferidoManualmente?: boolean;
+  /** Data/hora da última verificação (ISO 8601) */
+  verificadoEm?: string;
+}
+
+/**
+ * Resumo consolidado de regularidade do fornecedor.
+ * 
+ * @interface ResumoRegularidade
+ * @description Agrega o estado dos 4 portais para exibição na UI e gravação na planilha.
+ */
+export interface ResumoRegularidade {
+  /** CNPJ sanitizado do fornecedor (14 dígitos) */
+  cnpj: string;
+  /** Razão social do fornecedor */
+  razaoSocial: string;
+  /** Estado geral: 'sem_restricoes' se TCU/Compras.gov OK, 'impedimento' se houver restrição, 'pendente' se APIs falharam */
+  estadoGeral: 'sem_restricoes' | 'impedimento' | 'pendente';
+  /** Estado de cada portal individual */
+  portais: VerificacaoPortal[];
+  /** Data/hora da última verificação completa (ISO 8601) */
+  atualizadoEm: string;
+  /** Texto formatado para gravação na planilha compartilhada */
+  textoParaPlanilha: string;
+}
+
+/**
+ * Configuração de um portal de certidão (re-exportado de certidoes-links para tipagem).
+ * 
+ * @interface PortalCertidao
+ */
+export interface PortalCertidao {
+  id: 'tcu' | 'receita' | 'fgts' | 'cndt';
+  nome: string;
+  url: string;
+  suportaAutoFillUrl: boolean;
+  orgao: string;
+}
+
+/** Situação cadastral no SICAF */
+export type SicafSituacao = 'NAO_ENCONTRADO' | 'REGULAR' | 'PENDENTE' | 'SUSPENSO' | 'BAIXADO' | 'INAPTO' | 'CADASTRADO' | 'IMPEDIDO';
+
+/**
+ * Resultado da validação no SICAF (sistema de cadastro de fornecedores).
+ * 
+ * @interface SicafValidation
+ */
+export interface SicafValidation {
+  cnpj: string;
+  situacaoSicaf: SicafSituacao;
+  dataConsulta: string;
+  validadoEm?: string;
+  fonte?: string;
+  detalhes?: string;
+  erro?: string;
+  situacaoCadastralRFB?: string;
+}
+
+/**
+ * Resultado da consulta de pendências no TCU (Tribunal de Contas da União).
+ * 
+ * @interface TcuConsultaResultado
+ */
+export interface TcuConsultaResultado {
+  cnpj: string;
+  temPendencia: boolean;
+  tipoPendencia?: string;
+  descricaoPendencia?: string;
+  dataConsulta: string;
+  status?: string;
+  consultadoEm?: string;
+}
+
+/**
+ * Estado completo das certidões de um fornecedor.
+ * 
+ * @interface FornecedorCertidoes
+ */
+export interface FornecedorCertidoes {
+  cnpj: string;
+  razaoSocial: string;
+  tcu: TcuConsultaResultado;
+  sicaf: SicafValidation;
+  receitaConferida?: boolean;
+  fgtsConferida?: boolean;
+  cndtConferida?: boolean;
+  atualizadoEm: string;
 }

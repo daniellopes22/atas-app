@@ -73,9 +73,9 @@ describe('mapeamento de planilhas', () => {
     const consumo = mapToConsumoRow(item, 42);
     const permanente = mapToPermanenteRow(item, 42);
     const contratos = mapToContratoRow(item, 42);
-    expect(rowsToSheetValues([consumo], getConsumoHeaders())[0]).toHaveLength(23);
-    expect(rowsToSheetValues([permanente], getPermanenteHeaders())[0]).toHaveLength(23);
-    expect(rowsToSheetValues([contratos], getContratoHeaders())[0]).toHaveLength(24);
+    expect(rowsToSheetValues([consumo], getConsumoHeaders())[0]).toHaveLength(24);
+    expect(rowsToSheetValues([permanente], getPermanenteHeaders())[0]).toHaveLength(24);
+    expect(rowsToSheetValues([contratos], getContratoHeaders())[0]).toHaveLength(25);
     expect(consumo.saldoAdesao).toBe(50);
     expect(permanente.dispAdesao).toBe(50);
     expect(contratos.saldoAdesao).toBe(50);

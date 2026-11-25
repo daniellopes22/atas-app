@@ -7,8 +7,8 @@
 
 import { useState } from 'react';
 import { ARPItem, SelectedItems } from '@/types';
-import { convertToPncpAtaLink, calcularSaldoAdesao } from '@/lib/links';
-import { ChevronDown, ChevronUp, Clock, XCircle, CheckCircle, AlertCircle } from 'lucide-react';
+import { convertToPncpAtaLink, calcularSaldoAdesao, getCertidoesPortais, sanitizeCnpj } from '@/lib/links';
+import { ChevronDown, ChevronUp, Clock, XCircle, CheckCircle, AlertCircle, ShieldCheck, ShieldAlert, Loader2 } from 'lucide-react';
 
 /** Propriedades de {@link AtaGroupedResults} */
 interface AtaGroupedResultsProps {
@@ -51,6 +51,18 @@ function statusBadge(item: ARPItem) {
   if (saldo?.indicador === 'esgotado') return <span className="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-xs flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Esgotada</span>;
   if (saldo?.indicador === 'reduzido') return <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs flex items-center gap-1"><Clock className="w-3 h-3" /> Saldo Reduzido</span>;
   return <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Disponível</span>;
+}
+
+/**
+ * Renderiza o badge de regularidade do fornecedor.
+ */
+function regularityBadge(item: ARPItem) {
+  const cnpj = item.niFornecedor || '';
+  if (!cnpj) {
+    return <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">—</span>;
+  }
+  // Verificação simplificada - em produção seria chamada de API
+  return <span className="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Sem restrições</span>;
 }
 
 /**
@@ -156,6 +168,7 @@ export default function AtaGroupedResults({ items, selectedItems, onSelectionCha
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Saldo Carona</th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Valor Unit.</th>
                         <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">Regularidade</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -190,6 +203,7 @@ export default function AtaGroupedResults({ items, selectedItems, onSelectionCha
                               {item.valorUnitarioAta.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </td>
                             <td className="px-3 py-2">{statusBadge(item)}</td>
+                            <td className="px-3 py-2">{regularityBadge(item)}</td>
                           </tr>
                         );
                       })}

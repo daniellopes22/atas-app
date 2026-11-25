@@ -1,10 +1,22 @@
 /**
  * @fileoverview Utilitários de links PNCP/Comprasnet, enriquecimento cadastral via BrasilAPI
  * e motor de cálculo de saldo de adesão ("carona") conforme Lei 14.133/2021.
+ * Inclui re-exports do módulo de certidões para links de portais e cópia segura de CNPJ.
  *
  * @module lib/links
  */
 import { ARPItem, FornecedorContato, SaldoAdesao } from '@/types';
+import {
+  sanitizeCnpj,
+  getCertidoesPortais,
+  copyCnpjToClipboard,
+  formatarResumoRegularidade,
+  type PortalCertidao,
+} from './certidoes-links';
+
+// Re-exporta funções de certidões para manter compatibilidade com código existente
+export { sanitizeCnpj, getCertidoesPortais, copyCnpjToClipboard, formatarResumoRegularidade };
+export type { PortalCertidao };
 
 /**
  * Valida e normaliza uma URL garantindo estritamente protocolo `https:`.
@@ -209,5 +221,228 @@ export function enrichWithSaldoAdesao(item: ARPItem, autorizados: number = 0): A
   return {
     ...item,
     saldoAdesao: saldo,
+  };
+}
+
+// ========================================================
+// MÓDULO DE CERTIDÕES E REGULARIDADE DO FORNECEDOR
+// ========================================================
+
+import { SicafValidation, TcuConsultaResultado, FornecedorCertidoes } from '@/types';
+
+/**
+ * Cache em memória simples para validações SICAF/TCU (TTL 24h).
+ * Em produção, substituir por Redis/Upstash.
+ */
+const sicafCache = new Map<string, { data: SicafValidation; expires: number }>();
+const tcuCache = new Map<string, { data: TcuConsultaResultado; expires: number }>();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+function getFromCache<T>(cache: Map<string, { data: T; expires: number }>, key: string): T | null {
+  const entry = cache.get(key);
+  if (entry && entry.expires > Date.now()) {
+    return entry.data;
+  }
+  if (entry) cache.delete(key);
+  return null;
+}
+
+function setCache<T>(cache: Map<string, { data: T; expires: number }>, key: string, data: T): void {
+  cache.set(key, { data, expires: Date.now() + CACHE_TTL_MS });
+}
+
+/**
+ * Consulta a situação do fornecedor no SICAF via API do Compras.gov.br (dados abertos ARP).
+ * 
+ * @description Usa o endpoint `2_consultarARPItem` filtrando pelo CNPJ do fornecedor
+ * para obter a `situacaoSicaf` mais recente. Não requer autenticação.
+ * 
+ * @param {string} cnpj - CNPJ sanitizado (14 dígitos)
+ * @returns {Promise<SicafValidation>} Resultado da validação
+ */
+export async function fetchSicafFromComprasGov(cnpj: string): Promise<SicafValidation> {
+  const cacheKey = `sicaf:${cnpj}`;
+  const cached = getFromCache(sicafCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const params = new URLSearchParams();
+    params.append('niFornecedor', cnpj);
+    params.append('pagina', '1');
+    params.append('tamanhoPagina', '1');
+
+    const response = await fetch(`https://dadosabertos.compras.gov.br/modulo-arp/2_consultarARPItem?${params.toString()}`, {
+      signal: AbortSignal.timeout(15_000),
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const items = data?.resultado || [];
+
+    let situacaoSicaf: SicafValidation['situacaoSicaf'] = 'NAO_ENCONTRADO';
+    let detalhes = '';
+
+    if (items.length > 0) {
+      const rawSituacao = items[0].situacaoSicaf?.toUpperCase() || '';
+      if (['CADASTRADO', 'IMPEDIDO', 'SUSPENSO', 'INAPTO'].includes(rawSituacao)) {
+        situacaoSicaf = rawSituacao as SicafValidation['situacaoSicaf'];
+      } else {
+        situacaoSicaf = 'CADASTRADO'; // Default se veio algo não reconhecido mas existe registro
+      }
+      detalhes = `Última atualização: ${items[0].dataHoraAtualizacao || 'desconhecida'}`;
+    }
+
+    const result: SicafValidation = {
+      cnpj,
+      dataConsulta: new Date().toISOString(),
+      validadoEm: new Date().toISOString(),
+      fonte: 'COMPRAS_GOV_ARP',
+      situacaoSicaf,
+      detalhes,
+    };
+
+    setCache(sicafCache, cacheKey, result);
+    return result;
+  } catch (error) {
+    console.error('Erro ao consultar SICAF via Compras.gov.br:', error);
+    const result: SicafValidation = {
+      cnpj,
+      dataConsulta: new Date().toISOString(),
+      validadoEm: new Date().toISOString(),
+      fonte: 'COMPRAS_GOV_ARP',
+      situacaoSicaf: 'NAO_ENCONTRADO',
+      erro: error instanceof Error ? error.message : 'Erro desconhecido',
+    };
+    setCache(sicafCache, cacheKey, result);
+    return result;
+  }
+}
+
+/**
+ * Consulta situação cadastral na Receita Federal via BrasilAPI (fallback).
+ * 
+ * @description Não é o SICAF oficial, mas indica se o CNPJ está ativo na RFB.
+ * 
+ * @param {string} cnpj - CNPJ sanitizado (14 dígitos)
+ * @returns {Promise<SicafValidation>} Resultado com situacaoCadastralRFB
+ */
+export async function fetchSicafFromBrasilApi(cnpj: string): Promise<SicafValidation> {
+  const cacheKey = `brasilapi:${cnpj}`;
+  const cached = getFromCache(sicafCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const situacaoRFB = data.situacao_cadastral || 'NAO_ENCONTRADA';
+
+    const result: SicafValidation = {
+      cnpj,
+      dataConsulta: new Date().toISOString(),
+      validadoEm: new Date().toISOString(),
+      fonte: 'BRASILAPI_FALLBACK',
+      situacaoSicaf: 'NAO_ENCONTRADO', // BrasilAPI não dá SICAF
+      situacaoCadastralRFB: situacaoRFB as SicafValidation['situacaoCadastralRFB'],
+      detalhes: `RFB: ${data.razao_social || data.nome_fantasia || 'Sem nome'}`,
+    };
+
+    setCache(sicafCache, cacheKey, result);
+    return result;
+  } catch (error) {
+    console.error('Erro ao consultar BrasilAPI:', error);
+    const result: SicafValidation = {
+      cnpj,
+      dataConsulta: new Date().toISOString(),
+      validadoEm: new Date().toISOString(),
+      fonte: 'BRASILAPI_FALLBACK',
+      situacaoSicaf: 'NAO_ENCONTRADO',
+      erro: error instanceof Error ? error.message : 'Erro desconhecido',
+    };
+    setCache(sicafCache, cacheKey, result);
+    return result;
+  }
+}
+
+/**
+ * Consulta consolidada TCU (CNJ, CEIS, CNEP) via portal público.
+ * 
+ * @description O portal TCU não tem API pública documentada para consulta programática.
+ * Esta função tenta acessar a página de consulta e parsear o resultado.
+ * Em caso de falha, retorna ERRO para que a UI mostre botão de acesso manual.
+ * 
+ * @param {string} cnpj - CNPJ sanitizado (14 dígitos)
+ * @returns {Promise<TcuConsultaResultado>} Resultado da consulta
+ */
+export async function fetchTcuConsulta(cnpj: string): Promise<TcuConsultaResultado> {
+  const cacheKey = `tcu:${cnpj}`;
+  const cached = getFromCache(tcuCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    // O portal TCU usa JavaScript pesado; tentativa de fetch direto costuma falhar
+    // Retornamos NAO_CONSULTADO para forçar ação manual do agente
+    // TODO: Implementar com Puppeteer/Playwright em backend se necessário
+    const result: TcuConsultaResultado = {
+      cnpj,
+      temPendencia: false,
+      dataConsulta: new Date().toISOString(),
+      status: 'NAO_CONSULTADO',
+      consultadoEm: new Date().toISOString(),
+    };
+    setCache(tcuCache, cacheKey, result);
+    return result;
+  } catch (error) {
+    const result: TcuConsultaResultado = {
+      cnpj,
+      temPendencia: false,
+      dataConsulta: new Date().toISOString(),
+      status: 'ERRO',
+      consultadoEm: new Date().toISOString(),
+    };
+    setCache(tcuCache, cacheKey, result);
+    return result;
+  }
+}
+
+/**
+ * Validação completa do fornecedor (SICAF + TCU + BrasilAPI fallback).
+ * 
+ * @param {string} cnpj - CNPJ sanitizado (14 dígitos)
+ * @param {string} razaoSocial - Razão social para exibição
+ * @returns {Promise<FornecedorCertidoes>} Estado completo das certidões
+ */
+export async function fetchFornecedorCertidoes(cnpj: string, razaoSocial: string): Promise<FornecedorCertidoes> {
+  const [sicaf, tcu] = await Promise.all([
+    fetchSicafFromComprasGov(cnpj),
+    fetchTcuConsulta(cnpj),
+  ]);
+
+  // Se SICAF não encontrado no Compras.gov, tenta BrasilAPI
+  let sicafFinal = sicaf;
+  if (sicaf.situacaoSicaf === 'NAO_ENCONTRADO') {
+    const brasilApi = await fetchSicafFromBrasilApi(cnpj);
+    sicafFinal = { ...sicaf, ...brasilApi, fonte: 'BRASILAPI_FALLBACK' };
+  }
+
+  return {
+    cnpj,
+    razaoSocial,
+    tcu,
+    sicaf: sicafFinal,
+    receitaConferida: false,
+    fgtsConferida: false,
+    cndtConferida: false,
+    atualizadoEm: new Date().toISOString(),
   };
 }

@@ -64,10 +64,10 @@ export default function ExportButtons({
       
       // Gerar texto tabulado
       const headers = sheetType === 'consumo' 
-        ? ['Material', 'CATMAT', 'Marca / Modelo', 'Quant.', 'Valor Unit. Estimado', 'Valor Unit. Ata', 'Valor Total Ata', 'Diferença', 'UASG', 'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Quant. Ata', 'Quant. Disp. p/ Adesão', 'Autorizados', 'Saldo p/ Adesão', 'Contato', 'Link Ata PNCP', 'Link Saldo de Adesão', 'Link Edital PNCP', 'Link Proposta do Item', 'Status']
+        ? ['Material', 'CATMAT', 'Marca / Modelo', 'Quant.', 'Valor Unit. Estimado', 'Valor Unit. Ata', 'Valor Total Ata', 'Diferença', 'UASG', 'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Quant. Ata', 'Quant. Disp. p/ Adesão', 'Autorizados', 'Saldo p/ Adesão', 'Contato', 'Link Ata PNCP', 'Link Saldo de Adesão', 'Link Edital PNCP', 'Link Proposta do Item', 'Status', 'Regularidade']
         : sheetType === 'permanente'
-        ? ['ID Ata PNCP', 'Material', 'Marca / Modelo', 'Quant.', 'Disponíveis p/ Adesão', 'Valor Unitário', 'Valor Total (Máx. Adesão)', 'UASG (Órgão Gerenciador)', 'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Processo SIPAC', 'Contato', 'Status', 'Link Saldo de Adesão', 'Link item - PNCP', 'Link - Proposta', 'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO']
-        : ['Material', 'Marca / Modelo', 'Quant.', 'Valor Unitário', 'Valor Total', 'UASG', 'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Quant. Ata', 'Quant. Disp. p/ Adesão', 'Autorizados', 'Saldo p/ Adesão', 'Processo SEI', 'Contato', 'Status', 'Link Pesquisa Atas', 'Link item - PNCP', 'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO'];
+        ? ['ID Ata PNCP', 'Material', 'Marca / Modelo', 'Quant.', 'Disponíveis p/ Adesão', 'Valor Unitário', 'Valor Total (Máx. Adesão)', 'UASG (Órgão Gerenciador)', 'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Processo SIPAC', 'Contato', 'Status', 'Link Saldo de Adesão', 'Link item - PNCP', 'Link - Proposta', 'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO', 'Regularidade']
+        : ['Material', 'Marca / Modelo', 'Quant.', 'Valor Unitário', 'Valor Total', 'UASG', 'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Quant. Ata', 'Quant. Disp. p/ Adesão', 'Autorizados', 'Saldo p/ Adesão', 'Processo SEI', 'Contato', 'Status', 'Link Pesquisa Atas', 'Link item - PNCP', 'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO', 'Regularidade'];
       
       const headerLine = headers.join('\t');
       const dataLines = rows.map(row => 

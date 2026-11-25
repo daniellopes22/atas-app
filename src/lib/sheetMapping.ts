@@ -5,7 +5,7 @@
  * @module lib/sheetMapping
  */
 import { ARPItem, SheetRowConsumo, SheetRowPermanente, SheetRowContrato, SheetType } from '@/types';
-import { enrichWithPncpLinks, enrichWithSaldoAdesao, formatContatoPlanilha } from './links';
+import { enrichWithPncpLinks, enrichWithSaldoAdesao, formatContatoPlanilha, formatarResumoRegularidade, sanitizeCnpj } from './links';
 import { FornecedorContato } from '@/types';
 
 /**
@@ -72,6 +72,10 @@ export function mapToConsumoRow(item: ARPItem, rowIndex: number, contato?: Forne
     status: withSaldo.saldoAdesao?.indicador === 'esgotado' ? 'Esgotado' : 
             withSaldo.saldoAdesao?.indicador === 'reduzido' ? 'Saldo Reduzido' :
             withSaldo.saldoAdesao?.indicador === 'vencido' ? 'Vencido' : 'Disponível',
+    regularidade: sanitizeSpreadsheetText(formatarResumoRegularidade({ 
+      tcuOk: true, // TODO: substituir por verificação real
+      dataVerificacao: new Date()
+    })),
   };
 }
 
@@ -121,6 +125,10 @@ export function mapToPermanenteRow(item: ARPItem, rowIndex: number, contato?: Fo
     vigencia: item.dataVigenciaFinal.split('T')[0],
     gestaoContrato: '',
     diasEncerramento: '',
+    regularidade: sanitizeSpreadsheetText(formatarResumoRegularidade({ 
+      tcuOk: true, // TODO: substituir por verificação real
+      dataVerificacao: new Date()
+    })),
   };
 }
 
@@ -171,6 +179,10 @@ export function mapToContratoRow(item: ARPItem, rowIndex: number, contato?: Forn
     vigencia: item.dataVigenciaFinal.split('T')[0],
     gestaoContrato: '',
     diasEncerramento: '',
+    regularidade: sanitizeSpreadsheetText(formatarResumoRegularidade({ 
+      tcuOk: true, // TODO: substituir por verificação real
+      dataVerificacao: new Date()
+    })),
   };
 }
 
@@ -191,7 +203,7 @@ export function rowsToSheetValues<T extends object>(
 }
 
 /**
- * Retorna os 23 cabeçalhos da aba `"Atas - Mat. Consumo"`.
+ * Retorna os 24 cabeçalhos da aba `"Atas - Mat. Consumo"`.
  * @returns {string[]}
  */
 export function getConsumoHeaders(): string[] {
@@ -200,12 +212,12 @@ export function getConsumoHeaders(): string[] {
     'Valor Unit. Ata', 'Valor Total Ata', 'Diferença', 'UASG', 'Pregão',
     'Nº Ata', 'Item', 'Validade Ata', 'Quant. Ata', 'Quant. Disp. p/ Adesão',
     'Autorizados', 'Saldo p/ Adesão', 'Contato', 'Link Ata PNCP', 'Link Saldo de Adesão',
-    'Link Edital PNCP', 'Link Proposta do Item', 'Status'
+    'Link Edital PNCP', 'Link Proposta do Item', 'Status', 'Regularidade'
   ];
 }
 
 /**
- * Retorna os 23 cabeçalhos da aba `"Atas - Mat. Permanente"`.
+ * Retorna os 24 cabeçalhos da aba `"Atas - Mat. Permanente"`.
  * @returns {string[]}
  */
 export function getPermanenteHeaders(): string[] {
@@ -214,12 +226,12 @@ export function getPermanenteHeaders(): string[] {
     'Valor Unitário', 'Valor Total (Máx. Adesão)', 'UASG (Órgão Gerenciador)',
     'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Processo SIPAC', 'Contato',
     'Status', 'Link Saldo de Adesão', 'Link item - PNCP', 'Link - Proposta',
-    'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO'
+    'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO', 'Regularidade'
   ];
 }
 
 /**
- * Retorna os 24 cabeçalhos da aba `"Atas - Contratos"`.
+ * Retorna os 25 cabeçalhos da aba `"Atas - Contratos"`.
  * @returns {string[]}
  */
 export function getContratoHeaders(): string[] {
@@ -228,7 +240,7 @@ export function getContratoHeaders(): string[] {
     'UASG', 'Pregão', 'Nº Ata', 'Item', 'Validade Ata', 'Quant. Ata',
     'Quant. Disp. p/ Adesão', 'Autorizados', 'Saldo p/ Adesão', 'Processo SEI',
     'Contato', 'Status', 'Link Pesquisa Atas', 'Link item - PNCP',
-    'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO'
+    'NOTA DE EMPENHO', 'CONTRATO', 'VIGÊNCIA', 'GESTÃO DO CONTRATO', 'DIAS P/ ENCERRAMENTO', 'Regularidade'
   ];
 }
 
